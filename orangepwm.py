@@ -1,8 +1,15 @@
-from pyA20.gpio import gpio as GPIO
-from pyA20.gpio import port
+#! /usr/bin/python3
+# -*- coding: utf-8 -*-
+import os,sys
+import OPi.GPIO as GPIO
 import threading
 import time
- 
+
+"""
+Based on OrangePWM - Python software PWM for Orange Pi
+https://github.com/evergreen-it-dev/orangepwm.git
+"""
+
 class OrangePwm(threading.Thread):
 
   def __init__(self, frequency, gpioPin, gpioScheme=0):
@@ -19,18 +26,19 @@ class OrangePwm(threading.Thread):
      self.terminated = False
      self.toTerminate = False
      #GPIO.setmode(gpioScheme)
-
+     GPIO.setmode(GPIO.SUNXI)
+     GPIO.setwarnings(False)
 
   def start(self, dutyCycle):
     """
     Start PWM output. Expected parameter is :
     - dutyCycle : percentage of a single pattern to set HIGH output on the GPIO pin
-    
+
     Example : with a frequency of 1 Hz, and a duty cycle set to 25, GPIO pin will 
     stay HIGH for 1*(25/100) seconds on HIGH output, and 1*(75/100) seconds on LOW output.
     """
     self.dutyCycle = dutyCycle
-    GPIO.setcfg(self.gpioPin, GPIO.OUTPUT)
+    GPIO.setup(self.gpioPin, GPIO.OUT)
     self.thread = threading.Thread(None, self.run, None, (), {})
     self.thread.start()
 
@@ -43,7 +51,7 @@ class OrangePwm(threading.Thread):
       if self.dutyCycle > 0:
         GPIO.output(self.gpioPin, GPIO.HIGH)
         time.sleep(self.dutyCycle * self.sliceTime)
-      
+
       if self.dutyCycle < self.maxCycle:
         GPIO.output(self.gpioPin, GPIO.LOW)
         time.sleep((self.maxCycle - self.dutyCycle) * self.sliceTime)
@@ -55,7 +63,7 @@ class OrangePwm(threading.Thread):
     """
     Change the duration of HIGH output of the pattern. Expected parameter is :
     - dutyCycle : percentage of a single pattern to set HIGH output on the GPIO pin
-    
+
     Example : with a frequency of 1 Hz, and a duty cycle set to 25, GPIO pin will 
     stay HIGH for 1*(25/100) seconds on HIGH output, and 1*(75/100) seconds on LOW output.
     """
@@ -66,7 +74,7 @@ class OrangePwm(threading.Thread):
     """
     Change the frequency of the PWM pattern. Expected parameter is :
     - frequency : the frequency in Hz for the PWM pattern. A correct value may be 100.
-    
+
     Example : with a frequency of 1 Hz, and a duty cycle set to 25, GPIO pin will 
     stay HIGH for 1*(25/100) seconds on HIGH output, and 1*(75/100) seconds on LOW output.
     """
@@ -82,6 +90,6 @@ class OrangePwm(threading.Thread):
     while self.terminated == False:
       # Just wait
       time.sleep(0.01)
-  
+ 
     GPIO.output(self.gpioPin, GPIO.LOW)
-    GPIO.setcfg(self.gpioPin, GPIO.INPUT)
+    GPIO.setup(self.gpioPin, GPIO.IN)
