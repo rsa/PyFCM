@@ -13,12 +13,14 @@ https://github.com/evergreen-it-dev/orangepwm.git
 
 class FCM(threading.Thread):
 
-  def __init__(self, frequency, channelOUT='PL8', channelIN=None):
+  def __init__(self, frequency, channelOUT='PL8', channelIN=None, hardware = False):
     """ 
-    Init the OrangePwm instance. Expected parameters are :
-    - frequency : the frequency in Hz for the PWM pattern. A correct value may be 100.
+    - frequency  : the frequency in Hz for the PWM pattern. A correct value may be 20...100.
     - channelOUT : the gpio.port which will act as PWM ouput
+    - hardware   : (default False) - try use hardware PWMs, if exists (TODO)
+    - channelIN  : the gpio.port with give RPM signal from fan
     """
+    self.hardware = hardware
     self.terminated = False
     self.toTerminate = False
     self.terminatedCounter = False
@@ -44,7 +46,7 @@ class FCM(threading.Thread):
         self.stop()
     GPIO.cleanup()
 
-  def initBaseValues(self, frequency, maxCycle=100.0):
+  def initBaseValues(self, frequency, maxCycle = 100):
     self.baseTime = 1.0 / float(frequency)
     self.maxCycle = maxCycle
     self.sliceTime = self.baseTime / self.maxCycle
@@ -79,7 +81,10 @@ class FCM(threading.Thread):
     self.dutyCycle = dutyCycle
     GPIO.setup(self.channelOUT, GPIO.OUT)
     self.lock = threading.Lock()
-    self.thread = threading.Thread(None, self.run, None, (), {})
+    if self.hardware:
+        self.thread = threading.Thread(None, self.runHardware, None, (), {})
+    else:
+        self.thread = threading.Thread(None, self.runSoftware, None, (), {})
     self.thread.start()
 
     if self.channelIN is not None:
@@ -94,12 +99,23 @@ class FCM(threading.Thread):
     self.thread = threading.Thread(None, self.runCounter, None, (), {})
     self.thread.start()
 
+  def runHardware(self):
 
-  def run(self):
+    self.lock.acquire()
+
+    while self.toTerminate == False:
+        time.sleep(self.sliceTime)
+
+        self.checkRPM()
+
+    self.lock.release()
+
+  def runSoftware(self):
     """
     Run the PWM pattern into a background thread. This function should not be called outside of this class.
     """
     self.lock.acquire()
+
     while self.toTerminate == False:
       if self.dutyCycle > 0:
         if GPIO.input(self.channelOUT) == GPIO.LOW:
@@ -111,6 +127,12 @@ class FCM(threading.Thread):
             GPIO.output(self.channelOUT, GPIO.LOW)
         time.sleep((self.maxCycle - self.dutyCycle) * self.sliceTime)
 
+      self.checkRPM()
+
+    self.lock.release()
+
+  def checkRPM(self):
+
       if self.channelIN is not None:
         now = time.perf_counter()
         iter_elapsed = now - self.iter_start
@@ -119,8 +141,6 @@ class FCM(threading.Thread):
           self.iter_start = now
           self.countRPM(iter_elapsed)
 
-    self.lock.release()
-
   def runCounter(self):
     """
     Run the PWM counter.
@@ -128,10 +148,9 @@ class FCM(threading.Thread):
     self.lockCounter.acquire()
 
     while self.toTerminateCounter == False:
-      GPIO.wait_for_edge(self.channelIN,GPIO.FALLING, timeout=1000)
+      GPIO.wait_for_edge(self.channelIN, GPIO.FALLING, timeout=1000)
       self.doCounter()
 
-#    GPIO.remove_event_detect(self.channelIN)
     self.lockCounter.release()
 
   def doCounter(self):
@@ -141,11 +160,9 @@ class FCM(threading.Thread):
     """
     count RPM of
     """
-    tempCounter=float(self.Counter)
+    tempCounter = self.Counter
     self.Counter = 0
-    self.RPM = tempCounter/delta*60.0
-    self.lastTemp = self.getTemp()
-#    print(self.RPM, self.getTemp())
+    self.RPM = int(tempCounter / delta *60)
 
 
   def changeDutyCycle(self, dutyCycle):
@@ -176,6 +193,7 @@ class FCM(threading.Thread):
     Stops PWM output.
     """
     self.toTerminate = True
+    self.toTerminateCounter = True
 
     self.lock.acquire()
 
@@ -193,10 +211,7 @@ class FCM(threading.Thread):
     """
     Stops Counter.
     """
-    self.toTerminateCounter = True
     self.lockCounter.acquire()
-
-
-    self.lockCounter.release()
     GPIO.cleanup(self.channelIN)
+    self.lockCounter.release()
 
