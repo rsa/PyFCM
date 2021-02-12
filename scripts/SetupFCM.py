@@ -41,9 +41,9 @@ def restart(config):
     return
 
 def stop(config):
-    pid = getDaemonPID()
+    pid = getDaemonPID(config)
     if pid is not None:
-        os.kill(pid, SIGTERM)
+        os.kill(pid, signal.SIGTERM)
     global doStop
     doStop = True
     return
@@ -72,7 +72,7 @@ def clearDaemonPID(config):
 
 def getDaemonPID(config):
     try:
-        pf = file(config.get("Settings", "PidFile"),'r')
+        pf = open(config.get("Settings", "PidFile"),'r')
         pid = int(pf.read().strip())
         pf.close()
     except IOError:
