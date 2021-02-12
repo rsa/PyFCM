@@ -1,4 +1,4 @@
-PyFCM - Python Fun Control Module
+PyFCM - Python Fan Control Module
 =======
 
 Based on OrangePWM
