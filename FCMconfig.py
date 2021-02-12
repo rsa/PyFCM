@@ -6,49 +6,54 @@ import configparser
 class FCMconfig():
 
   def __init__(self, filename='/var/lib/FCM/FCMconfig.ini'):
-    self.filename = filename
     self.config = configparser.ConfigParser()
     self.config.optionxform = str
+    self.optionxform = str
+    self.filename = filename
 
   def __del__(self):
     del self.config
 
-  def makeDefaultConfig(self):
+  def makeDefaultConfig(self, fansNum=1):
     config = configparser.ConfigParser()
     config.optionxform = str
 
     config.add_section('Settings')
     config.set('Settings','BoardType','SUNXI')
     config.set('Settings','BoardName',self.getBoardName())
-    config.set('Settings','FansNumber','1')
+    config.set('Settings','FansNumber',str(fansNum))
+    config.set('Settings','PidFile','/run/FCM.pid')
     config.set('Settings','TargetTemperature','55')
+    config.set('Settings','ReactionTimeSec','10')
+    config.set('Settings','RPMMeasureSec','60')
+    config.set('Settings','RPMMeasureIntervalSec','600')
     config.set('Settings','RPMCalibrate','True')
     config.set('Settings','TemperatureCalibrate','False')
 
-    config.add_section('Fun-0')
-    config.set('Fun-0','Mode','auto')
-    config.set('Fun-0','ContriolGPIO','L8')
-    config.set('Fun-0','SignalGPIO','H5')
-    config.set('Fun-0','CalibratedFreq','40')
-    config.set('Fun-0','CalibratedMinDuty','40')
-    config.set('Fun-0','CalibratedMaxDuty','60')
-    config.set('Fun-0','ManualFreq','40')
-    config.set('Fun-0','ManualDuty','40')
+    for i in range(fansNum):
+        config.add_section('Fun'+str(i))
+        config.set('Fan'+str(i),'Mode','auto')
+        config.set('Fan'+str(i),'ContriolGPIO','PL8')
+        config.set('Fan'+str(i),'SignalGPIO','PH6')
+        config.set('Fan'+str(i),'CalibratedFreq','40')
+        config.set('Fan'+str(i),'CalibratedMinDuty','40')
+        config.set('Fan'+str(i),'CalibratedMaxDuty','60')
+        config.set('Fan'+str(i),'ManualFreq','40')
+        config.set('Fan'+str(i),'ManualDuty','40')
 
-    config.add_section('Calibrate-0')
-    config.set('Calibrate-0','Force','False')
-    config.set('Calibrate-0','Freqs','20,40,60,80,100')
-    config.set('Calibrate-0','Dutys','0,10,20,30,40,50,60,70,80,90,100')
-    config.set('Calibrate-0','RPMs','0,0,0,0,0,0,0,0,0,0,0')
-    config.set('Calibrate-0','CalculatedFreq','0')
-    config.set('Calibrate-0','TemperatureDelta','0,0,0,0,0,0,0,0,0,0,0')
-    config.set('Calibrate-0','CalculatedDutyMin','40')
-    config.set('Calibrate-0','CalculatedDutyMax','80')
+        config.set('Fan'+str(i),'CalibrateForce','False')
+        config.set('Fan'+str(i),'CalibrateFreqs','20,40,60,80,100')
+        config.set('Fan'+str(i),'CalibrateDutys','0,10,20,30,40,50,60,70,80,90,100')
+        config.set('Fan'+str(i),'CalibrateRPMs','0,0,0,0,0,0,0,0,0,0,0')
+        config.set('Fan'+str(i),'CalibrateCalculatedFreq','0')
+        config.set('Fan'+str(i),'CalibrateTemperatureDelta','0,0,0,0,0,0,0,0,0,0,0')
+        config.set('Fan'+str(i),'CalibrateCalculatedDutyMin','40')
+        config.set('Fan'+str(i),'CalibrateCalculatedDutyMax','80')
 
     return config
 
 
-  def updateConfig(self, config = None):
+  def updateConfig(self, config = None, fansNum=1 ):
 
     """
     Create, read, update, delete config
@@ -64,7 +69,7 @@ class FCMconfig():
     if config == None:
         if os.path.isfile(self.filename):
             os.remove(self.filename)
-        self.config = self.makeDefaultConfig()
+        self.config = self.makeDefaultConfig(fansNum)
 
     # Вносим изменения в конфиг. файл.
     with open(self.filename, "w") as config_file:
@@ -76,7 +81,7 @@ class FCMconfig():
   def readConfig(self):
 
     if not os.path.exists(self.filename):
-        self.config = self.updateConfig()
+        self.config = self.updateConfig(fansNum)
     else:
         self.config = configparser.ConfigParser()
         self.config.optionxform = str
@@ -87,3 +92,15 @@ class FCMconfig():
   def getBoardName(self):
     boardName=os.popen('cat /etc/armbian-release |grep "BOARD=" |sed "s/.*=//"|tr -d "\n"').read()
     return boardName
+
+  def get(self, sectionName, valueName):
+    value = self.config.get(sectionName,valueName)
+    return value
+
+  def getByNum(self, FanNum, valueName):
+    value = self.config.get("Fan"+str(FanNum),valueName)
+    return value
+
+  def getListValue(self, valueName, fanNum = 0):
+    valueList = self.config.get("Fan"+str(fanNum),valueName).replace(' ', '').split(',')
+    return valueList
