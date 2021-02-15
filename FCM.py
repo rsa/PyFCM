@@ -44,7 +44,6 @@ class FCM(threading.Thread):
   def __del__(self):
     if self.toTerminate == True:
         self.stop()
-    GPIO.cleanup()
 
   def initBaseValues(self, frequency, maxCycle = 100):
     self.baseTime = 1.0 / float(frequency)
@@ -201,10 +200,10 @@ class FCM(threading.Thread):
     if self.channelIN is not None:
         self.stopCounter()
 
-    self.lock.release()
-    GPIO.cleanup(self.channelOUT)
-
     self.toTerminate = False
+    GPIO.cleanup(self.channelOUT)
+    self.lock.release()
+
 
 
   def stopCounter(self):
@@ -213,5 +212,6 @@ class FCM(threading.Thread):
     """
     self.lockCounter.acquire()
     GPIO.cleanup(self.channelIN)
+    self.toTerminateCounter = False
     self.lockCounter.release()
 

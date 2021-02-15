@@ -9,13 +9,11 @@ import FCM
 
 def run(config):
     setDaemonPID(config)
-    signal.signal(signal.SIGTERM, handler)
-    signal.signal(signal.SIGINT, handler)
 
     fcm = []
 
     for i in range(int(config.get("Settings", "FansNumber"))):
-        fcm.append(FCM.FCM(int(config.getByNum(i, "ManualFreq")),
+        fcm.insert(i,FCM.FCM(int(config.getByNum(i, "ManualFreq")),
                          config.getByNum(i, "ContriolGPIO"),
                          config.getByNum(i, "SignalGPIO")))
         fcm[i].start(int(config.getByNum(i, "ManualDuty")))
@@ -25,19 +23,25 @@ def run(config):
 
     for i in range(int(config.get("Settings", "FansNumber"))):
         fcm[i].stop()
-        del fcm[i]
+
+    del fcm
 
     clearDaemonPID(config)
 
     return
 
 def calibrate(config):
+    #TODO
     return
 
 def calibratetemp(config):
+    #TODO
     return
 
-def restart(config):
+def configreload(config):
+    pid = getDaemonPID(config)
+    if pid is not None:
+        os.kill(pid, signal.SIGHUP)
     return
 
 def stop(config):
@@ -48,8 +52,15 @@ def stop(config):
     doStop = True
     return
 
-def handler(signum, frame):
-    print('Signal handler called with signal', signum)
+def configReloadHandler(signum, frame):
+#    print('Signal handler called with signal', signum)
+    global doStop
+    doStop = True
+    global doReload
+    doReload = True
+
+def exitHandler(signum, frame):
+#    print('Signal handler called with signal', signum)
     global doStop
     doStop = True
 
@@ -119,7 +130,14 @@ if __name__ == '__main__':
 
     config = FCMconfig.FCMconfig(args.config)
     global doStop
+    global doReload
+
     doStop = False
+    doReload = True
+
+    signal.signal(signal.SIGTERM, exitHandler)
+    signal.signal(signal.SIGINT, exitHandler)
+    signal.signal(signal.SIGHUP, configReloadHandler)
 
     if args.command == "setup":
         if (args.reset):
@@ -130,15 +148,21 @@ if __name__ == '__main__':
         print("Config board:",_config.get('Settings','BoardName')," Current board:",config.getBoardName())
         config.updateConfig(_config)
 
-    elif args.command == "run":
-        config.readConfig()
-        run(config)
+    elif args.command == "start" or args.command == "daemon":
+        while doReload == True:
+            doReload = False
+            doStop = False
+            config.readConfig()
+            run(config)
     elif args.command == "calibrate":
+        config.readConfig()
         calibrate(config)
     elif args.command == "calibratetemp":
+        config.readConfig()
         calibratetemp(config)
-    elif args.command == "restart":
-        restart(config)
+    elif args.command == "reload":
+        config.readConfig()
+        configreload(config)
     elif args.command == "stop":
         config.readConfig()
         stop(config)
