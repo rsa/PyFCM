@@ -1,0 +1,21 @@
+[Unit]
+  Description=FCM python daemon
+  Documentation=man:FCM(8)
+  After=local-fs.target
+  After=syslog.target
+ 
+[Service]
+  Type=idle
+  EnvironmentFile=-/etc/default/FCM
+  ExecStart=/usr/bin/python3 -u /usr/local/bin/SetupFCM.py daemon
+  ExecReload=/usr/bin/python3 -u /usr/local/bin/SetupFCM.py reload
+  ExecStop=/usr/bin/python3 -u /usr/local/bin/SetupFCM.py stop
+  KillMode=process
+ 
+  SyslogIdentifier=FCM
+  SyslogFacility=daemon
+ 
+  Restart=on-failure
+
+[Install]
+  WantedBy=multi-user.target
