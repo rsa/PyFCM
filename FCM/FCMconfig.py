@@ -31,7 +31,7 @@ class FCMconfig():
     config.set('Settings','TemperatureCalibrate','False')
 
     for i in range(fansNum):
-        config.add_section('Fun'+str(i))
+        config.add_section('Fan'+str(i))
         config.set('Fan'+str(i),'Mode','auto')
         config.set('Fan'+str(i),'ContriolGPIO','PL8')
         config.set('Fan'+str(i),'SignalGPIO','PH6')

@@ -4,8 +4,8 @@ import os,sys
 import time
 import argparse
 import signal
-import FCMconfig
-import FCM
+from FCM import FCM
+from FCM import FCMconfig
 
 def run(config):
     setDaemonPID(config)
